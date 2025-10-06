@@ -55,6 +55,43 @@ const Index = () => {
   ]);
 
   const [rconCommand, setRconCommand] = useState('');
+  
+  const [newServer, setNewServer] = useState({
+    name: '',
+    ip: '',
+    edition: 'java' as ServerEdition,
+    version: '1.20.1',
+    maxPlayers: '20',
+    supportedVersions: [] as string[]
+  });
+
+  const handleCreateServer = () => {
+    if (!newServer.name || !newServer.ip) {
+      alert('Заполните название и IP сервера');
+      return;
+    }
+
+    const server: Server = {
+      id: String(servers.length + 1),
+      name: newServer.name,
+      edition: newServer.edition,
+      version: newServer.version,
+      status: 'offline',
+      ip: newServer.ip,
+      players: { current: 0, max: parseInt(newServer.maxPlayers) }
+    };
+
+    setServers(prev => [...prev, server]);
+    setNewServer({
+      name: '',
+      ip: '',
+      edition: 'java',
+      version: '1.20.1',
+      maxPlayers: '20',
+      supportedVersions: []
+    });
+    setActiveView('servers');
+  };
 
   const getStatusColor = (status: ServerStatus) => {
     switch (status) {
@@ -334,19 +371,34 @@ const Index = () => {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="server-name">Название сервера</Label>
-                  <Input id="server-name" placeholder="Мой крутой сервер" />
+                  <Input 
+                    id="server-name" 
+                    placeholder="Мой крутой сервер"
+                    value={newServer.name}
+                    onChange={(e) => setNewServer(prev => ({ ...prev, name: e.target.value }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="server-ip">Буквенный IP адрес</Label>
-                  <Input id="server-ip" placeholder="myserver.mcpanel.net" />
+                  <Input 
+                    id="server-ip" 
+                    placeholder="myserver.mcpanel.net"
+                    value={newServer.ip}
+                    onChange={(e) => setNewServer(prev => ({ ...prev, ip: e.target.value }))}
+                  />
                   <p className="text-xs text-gray-500">Уникальный адрес для подключения к серверу</p>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Издание</Label>
                   <div className="grid grid-cols-2 gap-4">
-                    <Card className="border-2 border-green-500 bg-green-50 cursor-pointer hover:shadow-md transition-all">
+                    <Card 
+                      className={`border-2 cursor-pointer hover:shadow-md transition-all ${
+                        newServer.edition === 'java' ? 'border-green-500 bg-green-50' : 'border-gray-200'
+                      }`}
+                      onClick={() => setNewServer(prev => ({ ...prev, edition: 'java' }))}
+                    >
                       <CardHeader className="p-4">
                         <div className="flex items-center gap-2">
                           <Icon name="Box" className="text-green-600" size={24} />
@@ -357,10 +409,15 @@ const Index = () => {
                         </div>
                       </CardHeader>
                     </Card>
-                    <Card className="border-2 cursor-pointer hover:shadow-md transition-all">
+                    <Card 
+                      className={`border-2 cursor-pointer hover:shadow-md transition-all ${
+                        newServer.edition === 'bedrock' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      }`}
+                      onClick={() => setNewServer(prev => ({ ...prev, edition: 'bedrock' }))}
+                    >
                       <CardHeader className="p-4">
                         <div className="flex items-center gap-2">
-                          <Icon name="Smartphone" className="text-gray-600" size={24} />
+                          <Icon name="Smartphone" className="text-blue-600" size={24} />
                           <div>
                             <CardTitle className="text-sm">Bedrock Edition</CardTitle>
                             <CardDescription className="text-xs">Мобильная версия</CardDescription>
@@ -373,7 +430,10 @@ const Index = () => {
 
                 <div className="space-y-2">
                   <Label>Версия сервера</Label>
-                  <Select defaultValue="1.20.1">
+                  <Select 
+                    value={newServer.version}
+                    onValueChange={(value) => setNewServer(prev => ({ ...prev, version: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -401,7 +461,10 @@ const Index = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="max-players">Максимум игроков</Label>
-                  <Select defaultValue="20">
+                  <Select 
+                    value={newServer.maxPlayers}
+                    onValueChange={(value) => setNewServer(prev => ({ ...prev, maxPlayers: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -414,7 +477,10 @@ const Index = () => {
                   </Select>
                 </div>
 
-                <Button className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg py-6">
+                <Button 
+                  onClick={handleCreateServer}
+                  className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg py-6"
+                >
                   <Icon name="Rocket" size={20} className="mr-2" />
                   Создать сервер
                 </Button>
