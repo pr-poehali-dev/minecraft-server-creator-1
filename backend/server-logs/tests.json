@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Get server logs",
+      "method": "GET",
+      "path": "/?serverId=1",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "logs": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

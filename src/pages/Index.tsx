@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,29 +24,15 @@ interface Server {
   players: { current: number; max: number };
 }
 
+const API_URL = 'https://functions.poehali.dev/2027a0dd-2a32-4f9d-8337-7beb3c6bfa42';
+const LOGS_API_URL = 'https://functions.poehali.dev/2395f662-d429-4c6d-840f-1f8f6d4a6faa';
+const USER_ID = 'demo-user';
+
 const Index = () => {
   const [activeView, setActiveView] = useState<'home' | 'servers' | 'create' | 'panel'>('home');
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
-  const [servers, setServers] = useState<Server[]>([
-    {
-      id: '1',
-      name: 'Survival World',
-      edition: 'java',
-      version: '1.20.1',
-      status: 'online',
-      ip: 'survival.myserver.net',
-      players: { current: 12, max: 20 }
-    },
-    {
-      id: '2',
-      name: 'Creative Build',
-      edition: 'bedrock',
-      version: '1.19.80',
-      status: 'offline',
-      ip: 'creative.myserver.net',
-      players: { current: 0, max: 10 }
-    }
-  ]);
+  const [servers, setServers] = useState<Server[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [consoleLog, setConsoleLog] = useState<string[]>([
     '[INFO] Server started successfully',
@@ -65,32 +51,73 @@ const Index = () => {
     supportedVersions: [] as string[]
   });
 
-  const handleCreateServer = () => {
+  useEffect(() => {
+    fetchServers();
+  }, []);
+
+  const fetchServers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL, {
+        headers: {
+          'X-User-Id': USER_ID
+        }
+      });
+      const data = await response.json();
+      setServers(data.servers || []);
+    } catch (error) {
+      console.error('Failed to fetch servers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateServer = async () => {
     if (!newServer.name || !newServer.ip) {
       alert('Заполните название и IP сервера');
       return;
     }
 
-    const server: Server = {
-      id: String(servers.length + 1),
-      name: newServer.name,
-      edition: newServer.edition,
-      version: newServer.version,
-      status: 'offline',
-      ip: newServer.ip,
-      players: { current: 0, max: parseInt(newServer.maxPlayers) }
-    };
-
-    setServers(prev => [...prev, server]);
-    setNewServer({
-      name: '',
-      ip: '',
-      edition: 'java',
-      version: '1.20.1',
-      maxPlayers: '20',
-      supportedVersions: []
-    });
-    setActiveView('servers');
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': USER_ID
+        },
+        body: JSON.stringify({
+          name: newServer.name,
+          ip: newServer.ip,
+          edition: newServer.edition,
+          version: newServer.version,
+          maxPlayers: newServer.maxPlayers
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        await fetchServers();
+        setNewServer({
+          name: '',
+          ip: '',
+          edition: 'java',
+          version: '1.20.1',
+          maxPlayers: '20',
+          supportedVersions: []
+        });
+        setActiveView('servers');
+        alert('Сервер успешно создан!');
+      } else {
+        alert('Ошибка создания сервера: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to create server:', error);
+      alert('Не удалось создать сервер');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusColor = (status: ServerStatus) => {
@@ -115,20 +142,39 @@ const Index = () => {
     }
   };
 
-  const handleServerAction = (serverId: string, action: 'start' | 'stop' | 'restart') => {
-    setServers(prev => prev.map(s => 
-      s.id === serverId 
-        ? { ...s, status: action === 'start' ? 'starting' : 'offline' as ServerStatus }
-        : s
-    ));
-    
-    setTimeout(() => {
-      setServers(prev => prev.map(s => 
-        s.id === serverId 
-          ? { ...s, status: action === 'stop' ? 'offline' : 'online' as ServerStatus }
-          : s
-      ));
-    }, 2000);
+  const handleServerAction = async (serverId: string, action: 'start' | 'stop' | 'restart') => {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': USER_ID
+        },
+        body: JSON.stringify({
+          serverId,
+          action
+        })
+      });
+      
+      if (response.ok) {
+        setServers(prev => prev.map(s => 
+          s.id === serverId 
+            ? { ...s, status: action === 'start' ? 'starting' : action === 'stop' ? 'offline' : 'starting' as ServerStatus }
+            : s
+        ));
+        
+        if (action !== 'stop') {
+          setTimeout(() => {
+            setServers(prev => prev.map(s => 
+              s.id === serverId ? { ...s, status: 'online' as ServerStatus } : s
+            ));
+          }, 3000);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update server:', error);
+      alert('Не удалось изменить статус сервера');
+    }
   };
 
   const executeRconCommand = () => {
@@ -479,10 +525,11 @@ const Index = () => {
 
                 <Button 
                   onClick={handleCreateServer}
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg py-6"
                 >
                   <Icon name="Rocket" size={20} className="mr-2" />
-                  Создать сервер
+                  {loading ? 'Создание...' : 'Создать сервер'}
                 </Button>
               </CardContent>
             </Card>
