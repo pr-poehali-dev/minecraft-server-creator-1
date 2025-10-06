@@ -1,4 +1,5 @@
 {
+  "docker-manager": "https://functions.poehali.dev/4ad922f3-e729-41fb-9952-dea99070d966",
   "server-logs": "https://functions.poehali.dev/2395f662-d429-4c6d-840f-1f8f6d4a6faa",
   "servers": "https://functions.poehali.dev/2027a0dd-2a32-4f9d-8337-7beb3c6bfa42"
 }

@@ -26,6 +26,7 @@ interface Server {
 
 const API_URL = 'https://functions.poehali.dev/2027a0dd-2a32-4f9d-8337-7beb3c6bfa42';
 const LOGS_API_URL = 'https://functions.poehali.dev/2395f662-d429-4c6d-840f-1f8f6d4a6faa';
+const DOCKER_API_URL = 'https://functions.poehali.dev/4ad922f3-e729-41fb-9952-dea99070d966';
 const USER_ID = 'demo-user';
 
 const Index = () => {
@@ -98,6 +99,31 @@ const Index = () => {
       const data = await response.json();
       
       if (response.ok) {
+        const serverId = data.server.id;
+        
+        try {
+          const dockerResponse = await fetch(DOCKER_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              serverId: serverId,
+              action: 'create'
+            })
+          });
+          
+          const dockerData = await dockerResponse.json();
+          
+          if (dockerData.simulation) {
+            alert(`Сервер создан!\n\nРежим симуляции: данные сохранены в БД.\nДля реального запуска нужен Docker хост.`);
+          } else {
+            alert(`Сервер создан и запущен!\nПорт: ${dockerData.port}\nContainer ID: ${dockerData.containerId}`);
+          }
+        } catch (dockerError) {
+          alert('Сервер создан в БД, но Docker контейнер не запущен (нужна настройка Docker хоста)');
+        }
+        
         await fetchServers();
         setNewServer({
           name: '',
@@ -108,7 +134,6 @@ const Index = () => {
           supportedVersions: []
         });
         setActiveView('servers');
-        alert('Сервер успешно создан!');
       } else {
         alert('Ошибка создания сервера: ' + (data.error || 'Unknown error'));
       }
@@ -144,7 +169,20 @@ const Index = () => {
 
   const handleServerAction = async (serverId: string, action: 'start' | 'stop' | 'restart') => {
     try {
-      const response = await fetch(API_URL, {
+      const dockerResponse = await fetch(DOCKER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          serverId,
+          action
+        })
+      });
+      
+      const dockerData = await dockerResponse.json();
+      
+      const dbResponse = await fetch(API_URL, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +194,7 @@ const Index = () => {
         })
       });
       
-      if (response.ok) {
+      if (dbResponse.ok) {
         setServers(prev => prev.map(s => 
           s.id === serverId 
             ? { ...s, status: action === 'start' ? 'starting' : action === 'stop' ? 'offline' : 'starting' as ServerStatus }
@@ -169,6 +207,10 @@ const Index = () => {
               s.id === serverId ? { ...s, status: 'online' as ServerStatus } : s
             ));
           }, 3000);
+        }
+        
+        if (dockerData.simulation) {
+          console.log('Docker simulation mode - container not actually started');
         }
       }
     } catch (error) {

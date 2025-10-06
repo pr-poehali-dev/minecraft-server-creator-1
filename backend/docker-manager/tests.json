@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "name": "Create container request",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "serverId": "1",
+        "action": "create"
+      },
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
